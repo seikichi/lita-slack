@@ -30,8 +30,12 @@ module Lita
           call_api("channels.info", channel: channel_id)
         end
 
-        def channels_list
-          call_api("channels.list")
+        def users_list
+          call_api("users.list")
+        end
+
+        def conversations_list
+          call_api("conversations.list")
         end
 
         def groups_list
@@ -70,15 +74,22 @@ module Lita
         end
 
         def rtm_start
-          response_data = call_api("rtm.start")
+          rtm_response_data = call_api("rtm.connect")
+
+          users_response_data = users_list
+          conversations_response_data = conversations_list
+
+          channels = conversations_response_data["channels"].select { |c| c["is_channel"] }
+          groups = conversations_response_data["channels"].select { |c| c["is_group"] }
+          ims    = conversations_response_data["channels"].select { |c| c["is_im"] }
 
           TeamData.new(
-            SlackIM.from_data_array(response_data["ims"]),
-            SlackUser.from_data(response_data["self"]),
-            SlackUser.from_data_array(response_data["users"]),
-            SlackChannel.from_data_array(response_data["channels"]) +
-              SlackChannel.from_data_array(response_data["groups"]),
-            response_data["url"],
+            SlackIM.from_data_array(ims), # ims
+            SlackUser.from_data(rtm_response_data["self"]), # self
+            SlackUser.from_data_array(users_response_data["members"]), # users
+            SlackChannel.from_data_array(channels) +
+              SlackChannel.from_data_array(groups), # channels
+            rtm_response_data["url"] # websocket_url
           )
         end
 
