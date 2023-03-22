@@ -75,8 +75,21 @@ module Lita
 
         def rtm_start
           rtm_response_data = call_api('rtm.connect')
+          
+          # NOTE: 対処療法
+          # see: https://api.slack.com/methods/users.list
+          # > If the collection is too large you may experience limit_required or HTTP 500 errors.
+          members = []
+          cursor = nil
+          loop do 
+            limit = 800
+            option = cursor.nil? ? "" : "&cursor=#{cursor}"
+            users_res = call_api("users.list?limit=#{limit}#{option}")
+            members.concat(users_res['members'])
+            cursor = users_res['response_metadata']['next_cursor']
+            break if cursor.empty?
+          end          
 
-          users_response_data = users_list
           conversations_response_data = conversations_list
 
           channels = conversations_response_data['channels'].select { |c| c['is_channel'] }
@@ -86,7 +99,7 @@ module Lita
           TeamData.new(
             SlackIM.from_data_array(ims), # ims
             SlackUser.from_data(rtm_response_data['self']), # self
-            SlackUser.from_data_array(users_response_data['members']), # users
+            SlackUser.from_data_array(members), # users
             SlackChannel.from_data_array(channels) +
               SlackChannel.from_data_array(groups), # channels
             rtm_response_data['url'] # websocket_url
