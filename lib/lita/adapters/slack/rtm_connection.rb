@@ -110,6 +110,7 @@ module Lita
         def websocket_options
           options = { ping: 10 }
           options[:proxy] = { origin: config.proxy } if config.proxy
+          options[:tls] = { :verify_peer => false }
           options
         end
       end
